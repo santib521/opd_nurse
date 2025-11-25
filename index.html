@@ -1,0 +1,1508 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Patient Dashboard (Timeline Fixed)</title>
+    
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.2/css/all.min.css" 
+        crossorigin="anonymous" 
+        referrerpolicy="no-referrer" />
+
+    <style>
+        /* 1. Base Styles & Layout */
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            margin: 0;
+            background-color: #eef2f6;
+            color: #333;
+            line-height: 1.5;
+        }
+        .container {
+            padding: 20px;
+            max-width: 1400px;
+            margin: 0 auto;
+            /* ต้องเพิ่ม padding-top ให้กับ container เพื่อหลีกเลี่ยงการทับซ้อนกับ Search Bar และ Toolbar ที่ถูกตรึง */
+            /* Search Bar (12px margin-bottom) + Toolbar (20px margin-bottom) + Search Bar Height (70px estimate) + Toolbar Height (60px estimate) + 20px top padding = ~200px. ใช้ค่าที่ปลอดภัย */
+            padding-top: 200px;
+        }
+        /* New Utility Class for toggling visibility */
+        .hidden-view {
+            display: none !important;
+        }
+
+        /* 2. Search Bar - MODIFIED FOR STICKY */
+        .search-bar {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            background-color: #fff;
+            padding: 15px 25px;
+            border-radius: 12px;
+            margin-bottom: 6px;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.08);
+            position: relative;
+
+            /* ADDED: Sticky Positioning */
+            position: fixed; /* ใช้ fixed แทน sticky เพราะต้องการให้ตรึงเสมอไม่ว่าจะ scroll ไปแค่ไหน */
+            top: 6px; /* เว้นระยะห่างจากขอบบนของจอ 20px (เท่ากับ padding-top ของ container เดิม) */
+            left: 50%;
+            transform: translateX(-50%);
+            width: calc(100% - 40px); /* ความกว้างเต็มจอ (100%) หักด้วย padding ซ้าย-ขวา 20px */
+            max-width: 1400px; /* จำกัดความกว้างเท่ากับ container */
+            z-index: 100; /* ตรวจสอบให้แน่ใจว่าอยู่บนสุด */
+            border-bottom-left-radius: 0;
+            border-bottom-right-radius: 0;
+            margin-bottom: 0; /* ลบ margin-bottom ออกเมื่อเป็น fixed */
+        }
+        .search-controls {
+            display: flex;
+            gap: 15px;
+            align-items: center;
+            flex-wrap: nowrap;
+            flex-grow: 1;
+            overflow-x: auto;
+            padding-right: 20px;
+        }
+        .search-item {
+            display: flex;
+            flex-direction: column;
+            gap: 5px;
+            flex-shrink: 0;
+            min-width: 120px;
+        }
+        .search-item label {
+            font-size: 0.8em;
+            color: #555;
+            font-weight: 600;
+            white-space: nowrap;
+        }
+        .search-item input[type="date"],
+        .search-item select,
+        .search-item input[type="text"] {
+            padding: 8px 10px;
+            border: 1px solid #c9d0d6;
+            border-radius: 6px;
+            font-size: 0.9em;
+            width: 100%;
+            transition: border-color 0.2s, box-shadow 0.2s;
+            box-sizing: border-box;
+        }
+        .search-item input:focus,
+        .search-item select:focus {
+            border-color: #007bff;
+            box-shadow: 0 0 0 2px rgba(0, 123, 255, 0.25);
+            outline: none;
+        }
+        .search-buttons {
+            display: flex;
+            gap: 10px;
+            align-items: center;
+            flex-shrink: 0;
+        }
+        .action-icon-button {
+            background: none;
+            border: none;
+            font-size: 1.1em;
+            color: #007bff;
+            cursor: pointer;
+            padding: 10px;
+            border-radius: 50%;
+            transition: background-color 0.2s, color 0.2s;
+        }
+        .action-icon-button:hover {
+            background-color: #e6f0ff;
+        }
+        .close-button {
+            background: none;
+            border: none;
+            font-size: 1.5em;
+            color: #555;
+            cursor: pointer;
+            padding: 5px;
+            flex-shrink: 0;
+        }
+        .close-button:hover {
+            color: #dc3545;
+        }
+
+
+        /* 3. Tool Bar - MODIFIED FOR STICKY */
+        .toolbar {
+            display: flex;
+            align-items: center;
+            background-color: #fff;
+            padding: 8px 15px; 
+            border-radius: 12px;
+            margin-bottom: 20px;
+            flex-wrap: nowrap; 
+            gap: 15px; 
+            box-shadow: 0 2px 8px rgba(0,0,0,0.05);
+            position: relative; 
+
+            /* ADDED: Sticky Positioning */
+            position: fixed; /* ใช้ fixed แทน sticky เพราะต้องการให้ตรึงเสมอไม่ว่าจะ scroll ไปแค่ไหน */
+            /* ตำแหน่ง Top: Search Bar (ประมาณ 100px) + 20px (เว้นระยะห่างจากขอบบน) */
+            top: 116px; /* ต้องคำนวณตำแหน่งที่แน่นอนหลัง Search Bar */
+            left: 50%;
+            transform: translateX(-50%);
+            width: calc(100% - 40px);
+            max-width: 1400px;
+            z-index: 99; /* อยู่ใต้ Search Bar เล็กน้อย */
+            border-top-left-radius: 0;
+            border-top-right-radius: 0;
+        }
+        
+        /* 3.1 Fixed Toolbar (Left) */
+        .toolbar-fixed {
+            display: flex;
+            gap: 15px;
+            padding-right: 15px;
+            border-right: 1px solid #eee; /* Separator */
+            flex-shrink: 0;
+            align-items: center;
+        }
+        /* 3.2 Dynamic Toolbar (Middle, Blue Box) */
+        .toolbar-dynamic-wrapper {
+            display: flex;
+            gap: 10px;
+            padding: 5px 10px;
+            border: 2px solid #007bff; 
+            border-radius: 8px;
+            flex-grow: 1;
+            align-items: center;
+            min-height: 50px; 
+            background-color: #f0f8ff; 
+            transition: opacity 0.3s ease-in-out;
+        }
+        .toolbar-dynamic-wrapper.hidden {
+            opacity: 0.5;
+            border-style: dashed;
+            color: #999;
+            justify-content: center;
+            font-size: 0.9em;
+            font-weight: 500;
+        }
+        
+        .toolbar-item {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            cursor: pointer;
+            transition: color 0.2s, transform 0.2s;
+            flex-shrink: 0;
+            padding: 5px;
+        }
+        .toolbar-icon {
+            font-size: 1.2em; 
+            color: #555;
+            padding: 5px;
+            border-radius: 4px;
+            transition: color 0.2s;
+        }
+        .toolbar-item-label {
+            font-size: 0.7em; 
+            color: #555;
+            margin-top: 3px;
+        }
+        .toolbar-item:hover .toolbar-icon {
+            color: #007bff;
+            transform: scale(1.1);
+        }
+        .toolbar-item.active .toolbar-icon {
+            color: #007bff;
+        }
+        
+        /* สไตล์สำหรับ Dynamic Toolbar (Icon Only) */
+        .toolbar-dynamic-wrapper .toolbar-item {
+            flex-direction: row; 
+            padding: 8px 12px; 
+            background-color: transparent;
+            border-radius: 6px;
+            transition: background-color 0.2s;
+        }
+        .toolbar-dynamic-wrapper .toolbar-item:hover {
+            background-color: rgba(0, 123, 255, 0.1); 
+        }
+        
+        .toolbar-dynamic-wrapper .toolbar-item-label {
+            display: none; 
+        }
+        
+        .toolbar-dynamic-wrapper .toolbar-icon {
+            font-size: 1.5em; 
+            color: #007bff; 
+            padding: 0; 
+        }
+        .toolbar-dynamic-wrapper .toolbar-item:hover .toolbar-icon {
+            color: #0056b3; 
+            transform: none; 
+        }
+
+
+        /* 3.4 New: Drawer/Dropdown Menu */
+        .drawer-container {
+            position: relative;
+            flex-shrink: 0;
+            padding: 0 10px; 
+            display: flex;
+            align-items: center;
+        }
+        .drawer-button {
+            background: none;
+            border: none;
+            font-size: 1.5em;
+            color: #555;
+            cursor: pointer;
+            padding: 0 5px;
+            transition: color 0.2s;
+        }
+        .drawer-button:hover {
+            color: #007bff;
+        }
+        
+        .drawer-dropdown {
+            position: absolute;
+            top: 100%; 
+            left: 0;
+            background-color: #fff;
+            box-shadow: 0 4px 10px rgba(0,0,0,0.2);
+            border-radius: 8px;
+            min-width: 180px;
+            padding: 10px 0;
+            z-index: 20;
+            opacity: 0;
+            visibility: hidden;
+            transform: translateY(10px);
+            transition: opacity 0.2s, transform 0.2s;
+        }
+        .drawer-dropdown.open {
+            opacity: 1;
+            visibility: visible;
+            transform: translateY(0);
+        }
+        .drawer-item {
+            padding: 8px 15px;
+            font-size: 0.9em;
+            color: #333;
+            cursor: pointer;
+            transition: background-color 0.1s;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+        .drawer-item:hover {
+            background-color: #f0f4f8;
+            color: #007bff;
+        }
+
+        /* 3.3 Panel Visibility Switch (ย้ายไปขวาสุด) */
+        .panel-toggle-item {
+            /* ลบ border-right ออกเมื่อย้ายไปขวา */
+            padding: 0 10px;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            flex-shrink: 0; /* สำคัญ: ป้องกันการย่อ */
+        }
+        .panel-toggle-item .switch {
+            position: relative;
+            display: inline-block;
+            width: 30px; 
+            height: 18px;
+        }
+        .panel-toggle-item .slider {
+            position: absolute;
+            cursor: pointer;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background-color: #ccc;
+            transition: .4s;
+        }
+        .panel-toggle-item input:checked + .slider {
+            background-color: #2196F3;
+        }
+        .panel-toggle-item .slider:before {
+            position: absolute;
+            content: "";
+            height: 12px;
+            width: 12px;
+            left: 3px;
+            bottom: 3px;
+            background-color: white;
+            transition: .4s;
+            border-radius: 50%;
+        }
+        .panel-toggle-item input:checked + .slider:before {
+            transform: translateX(12px);
+        }
+        .panel-toggle-item .slider.round {
+            border-radius: 18px;
+        }
+        .panel-toggle-item .slider.round:before {
+            border-radius: 50%;
+        }
+
+
+        /* 4. Content Area, 5. Sidebar, 6. Table, 7. Detail Panel - MODIFIED: Status Sidebar for sticky */
+        .dashboard-content {
+            display: flex;
+            gap: 20px;
+            align-items: flex-start;
+        }
+        .status-sidebar {
+            flex: 0 0 120px;
+            display: flex;
+            flex-direction: column;
+            gap: 6px;
+            /* MODIFIED: Sticky Positioning */
+            position: sticky; /* ใช้ sticky เพื่อให้เลื่อนได้จนถึงจุดที่ต้องการตรึง */
+            top: 195px; /* ตรึงใต้ Toolbar เล็กน้อย (Toolbar Top 100px + Toolbar Height ~75px + 20px gap = 195px) */
+            z-index: 50; /* อยู่ด้านบนของ content-box แต่ใต้ Toolbar */
+        }
+        
+        .status-card {
+            background-color: #fff;
+            border-radius: 10px;
+            box-shadow: 0 2px 6px rgba(0,0,0,0.1);
+            padding: 8px;
+            cursor: pointer;
+            transition: transform 0.2s, box-shadow 0.2s, border 0.2s;
+            border-left: 5px solid transparent;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+        }
+        .status-card:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 4px 8px rgba(0,0,0,0.15);
+        }
+        .status-card.active {
+            border-left-color: #007bff;
+            box-shadow: 0 4px 10px rgba(0,0,0,0.15);
+        }
+        
+        .status-card-count {
+            order: 1; 
+            font-weight: 700;
+            font-size: 1.0em;
+            padding-right: 8px;
+            flex-shrink: 0;
+        }
+        .status-card-title {
+            order: 2;
+            font-weight: 600;
+            font-size: 0.75em; 
+            color: #333; 
+            margin-bottom: 0;
+            line-height: 1.2;
+            text-align: right;
+            flex-grow: 1;
+        }
+        
+        .status-card-count.red { color: #dc3545; }
+        .status-card-count.green { color: #28a745; }
+        .status-card-count.orange { color: #fd7e14; }
+        .status-card-count.blue { color: #536e8b; }
+        .main-content-box {
+            flex: 1;
+            background-color: #fff;
+            border-radius: 12px;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.08);
+            padding: 20px;
+            min-height: 60vh;
+            display: flex;
+            flex-direction: column;
+        }
+        .main-table-header {
+            background-color: #3973b1;
+            color: #fff;
+            padding: 8px 15px;
+            border-radius: 8px;
+            margin-bottom: 10px;
+            font-weight: bold;
+            font-size: 1.1em;
+            text-align: center;
+        }
+        .table-wrapper {
+            overflow: auto;
+            flex-grow: 1;
+        }
+        
+        .dynamic-data-table {
+            width: 100%;
+            border-collapse: separate;
+            border-spacing: 0;
+            table-layout: auto;
+            min-width: 1100px; 
+        }
+        .dynamic-data-table th,
+        .dynamic-data-table td {
+            text-align: left;
+            padding: 8px 6px;
+            word-wrap: break-word;
+            font-size: 0.7em; 
+        }
+        .dynamic-data-table th {
+            background-color: #f0f4f8;
+            font-weight: 700;
+            color: #444;
+            text-transform: uppercase;
+            position: sticky;
+            top: 0;
+            z-index: 10;
+        }
+        .dynamic-data-table tbody tr {
+            cursor: pointer;
+            transition: background-color 0.15s ease;
+            border-bottom: 1px solid #eee;
+        }
+        .dynamic-data-table tbody tr:hover {
+            background-color: #f5f9ff;
+        }
+        .dynamic-data-table tbody tr.selected {
+            background-color: #d1e7ff;
+            outline: 2px solid #007bff;
+        }
+        .patient-flag {
+            font-size: 1.1em;
+            cursor: help; 
+            padding-left: 5px;
+            display: flex;
+            gap: 5px;
+        }
+        .flag-vip { color: gold; text-shadow: 0 0 2px #555; }
+        .flag-pregnant { color: #ff69b4; } 
+        .flag-critical { color: #dc3545; animation: blink 1s infinite; }
+        @keyframes blink {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0.5; }
+        }
+
+        .status-badge {
+            display: inline-block;
+            padding: 4px 8px;
+            border-radius: 12px;
+            font-size: 0.75em;
+            font-weight: bold;
+            white-space: nowrap;
+        }
+        .status-badge.Appointment { background-color: #d4edda; color: #155724; }
+        .status-badge.Walk-in { background-color: #ffeeba; color: #856404; }
+
+        .patient-detail-panel {
+            position: fixed;
+            top: 0;
+            right: -420px; 
+            width: 400px;
+            height: 100vh;
+            background-color: #fff;
+            box-shadow: -4px 0 15px rgba(0,0,0,0.2);
+            z-index: 1000;
+            transition: right 0.3s ease-in-out;
+            padding: 20px; 
+            overflow-y: auto;
+        }
+        .patient-detail-panel.open {
+            right: 0; 
+        }
+        
+        .panel-header { 
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            position: sticky; 
+            top: 0;
+            background-color: #fff;
+            padding-bottom: 20px;
+            margin-bottom: 10px;
+            z-index: 1001;
+            border-bottom: 1px solid #eee;
+        }
+        
+        .close-panel-btn {
+            background: none;
+            border: none;
+            font-size: 1.5em;
+            color: #555;
+            cursor: pointer;
+            padding: 0;
+            flex-shrink: 0;
+        }
+        .close-panel-btn:hover {
+            color: #dc3545;
+        }
+        
+        .panel-content h3 {
+            margin-top: 0;
+            font-size: 1.3em;
+            color: #007bff;
+        }
+
+        .allergy-alert-banner {
+            background-color: #f8d7da; 
+            color: #721c24; 
+            border: 1px solid #f5c6cb;
+            padding: 15px;
+            margin-bottom: 20px;
+            border-radius: 8px;
+            font-weight: bold;
+            font-size: 1.1em;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+        .underlying-section h4 {
+            margin-top: 15px;
+            margin-bottom: 5px;
+            font-size: 0.9em;
+            color: #555;
+            font-weight: 600;
+            border-bottom: 1px solid #eee;
+            padding-bottom: 5px;
+        }
+        .underlying-badge {
+            display: inline-block;
+            background-color: #e6f0ff;
+            color: #007bff;
+            padding: 4px 8px;
+            margin: 5px 5px 0 0;
+            border-radius: 4px;
+            font-size: 0.8em;
+        }
+        .underlying-badge.nka {
+            background-color: #d4edda; 
+            color: #155724;
+            font-weight: bold;
+        }
+        .detail-item {
+            padding: 8px 0;
+            border-bottom: 1px dotted #eee;
+        }
+        .detail-item strong {
+            display: block;
+            font-size: 0.75em;
+            color: #777;
+        }
+        .detail-item span {
+            font-size: 0.9em;
+            font-weight: 500;
+            color: #333;
+        }
+        
+        /* --- TIMELINE SPECIFIC STYLES (Horizontal) --- */
+
+        /* Container for the Individual Timeline */
+        .patient-timeline-container {
+            background-color: #f0f8ff; 
+            padding: 15px 20px;
+            border: 1.5px solid #3579f6;
+            border-radius: 8px;
+            margin-bottom: 20px; 
+            box-shadow: inset 0 1px 5px rgba(0, 123, 255, 0.1);
+            /* Set a fixed height for better horizontal layout */
+            height: 35px; 
+            overflow-x: auto; /* Allow horizontal scrolling if milestones are too many */
+            overflow-y: hidden;
+            white-space: nowrap; /* Prevent items from wrapping */
+        }
+
+        /* Flexbox for horizontal arrangement */
+        .timeline-item-list {
+            display: flex;
+            align-items: flex-end; /* Align items to the bottom (line runs along the middle) */
+            height: 100%;
+            padding: 0;
+            margin: 0;
+            position: relative;
+            /* Main horizontal line running through the list */
+            border-bottom: 3px solid #ccc;
+        }
+
+        .timeline-item {
+            position: relative;
+            display: inline-block;
+            flex-shrink: 0; /* Important: prevents shrinking */
+            width: 150px; /* Fixed width for each milestone for consistent spacing */
+            height: 100%;
+            padding: 0 5px 15px 5px; /* Padding for bottom to separate from line */
+            text-align: center;
+            transition: transform 0.2s;
+            background-color: transparent; /* Remove individual background */
+            box-shadow: none;
+            cursor: default;
+        }
+
+        /* The vertical line connecting the bubble to the horizontal line */
+        .timeline-item:before {
+            content: '';
+            position: absolute;
+            bottom: -3px; /* Start at the horizontal line */
+            left: 50%;
+            transform: translateX(-50%);
+            width: 3px; /* Vertical line width */
+            height: 15px; /* Vertical line length */
+            background-color: #ccc;
+            z-index: 1;
+            border-radius: 0;
+        }
+
+        /* The round milestone dot */
+        .timeline-item:after {
+            content: '';
+            position: absolute;
+            bottom: -8px; /* Position right on the center line */
+            left: 50%;
+            transform: translateX(-50%);
+            width: 15px;
+            height: 15px;
+            background-color: #007bff;
+            border: 3px solid #f8faff; /* Match container background for floating effect */
+            border-radius: 50%;
+            z-index: 2; /* Must be above the line */
+        }
+
+        .timeline-item.active-status:after {
+            background-color: #28a745; /* Green for current status */
+            border-color: #fff; /* Make border white to pop */
+        }
+
+        .timeline-item-time {
+            font-size: 0.8em;
+            color: #777;
+            margin-bottom: 3px;
+            display: block;
+            font-weight: 500;
+        }
+
+        .timeline-item-status {
+            font-weight: bold;
+            color: #333;
+            font-size: 0.9em;
+            line-height: 1.1;
+            display: block;
+            margin-top: 5px;
+            word-wrap: break-word; /* Allow long status to wrap within fixed width */
+            white-space: normal;
+        }
+        /* This label is not needed for individual timeline, keep to prevent JS error */
+        .timeline-item-patient {
+            display: none; 
+        }
+
+        /* Optional: Add space between items */
+        .timeline-item:not(:last-child) {
+            margin-right: 20px; 
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <header class="search-bar">
+            <div class="search-controls">
+                <div class="search-item">
+                    <label for="fromDate">From Date</label>
+                    <input type="date" id="fromDate" value="2025-05-20">
+                </div>
+                <div class="search-item">
+                    <label for="toDate">To Date</label>
+                    <input type="date" id="toDate" value="2025-05-20">
+                </div>
+                <div class="search-item">
+                    <label for="location">Location</label>
+                    <select id="location">
+                        <option value="checkupCenter">Check-up Center</option>
+                        <option value="corporate">Corporate Site</option>
+                    </select>
+                </div>
+                <div class="search-item">
+                    <label for="vn">VN / HN</label>
+                    <input type="text" id="vn" placeholder="Enter VN or HN">
+                </div>
+                <div class="search-item">
+                    <label for="doctor">Select Doctor</label>
+                    <select id="doctor">
+                        <option value="">All Doctors</option>
+                        <option value="dr1">นพ. วีรวัฒน์ เก่งกาจ</option>
+                        <option value="dr2">พญ. สุดารัตน์ งามยิ่ง</option>
+                    </select>
+                </div>
+                <div class="search-item">
+                    <label for="company">Company (Filter Only)</label>
+                    <input type="text" id="company" placeholder="Company Name">
+                </div>
+            </div>
+            <div class="search-buttons">
+                <button class="action-icon-button" id="resetSearchBtn" title="Reset Search">
+                    <i class="fa-solid fa-rotate-right"></i>
+                </button>
+                <button class="action-icon-button" id="searchBtn" title="Search">
+                    <i class="fa-solid fa-magnifying-glass"></i>
+                </button>
+                <button class="close-button" aria-label="Close Dashboard" title="Close">
+                    <i class="fa-solid fa-xmark"></i>
+                </button>
+            </div>
+        </header>
+
+        <nav class="toolbar">
+            <div class="toolbar-fixed">
+                <div class="drawer-container">
+                    <button class="drawer-button" id="drawerBtn" title="Main Menu">
+                        <i class="fa-solid fa-bars"></i>
+                    </button>
+                    <div class="drawer-dropdown" id="drawerDropdown">
+                        <div class="drawer-item" onclick="alert('Action: Dashboard View')">
+                            <i class="fa-solid fa-gauge-high" style="color:#007bff;"></i> Dashboard View
+                        </div>
+                        <div class="drawer-item" onclick="alert('Action: Patient Registration')">
+                            <i class="fa-solid fa-user-plus" style="color:#28a745;"></i> Patient Registration
+                        </div>
+                        <div class="drawer-item" onclick="alert('Action: Billing & Finance')">
+                            <i class="fa-solid fa-money-bill-transfer" style="color:#ffc107;"></i> Billing & Finance
+                        </div>
+                    </div>
+                </div>
+
+                <div class="toolbar-item" id="toggleViewBtn" title="View Options">
+                    <i class="fa-solid fa-table-list toolbar-icon" id="toggleViewIcon"></i>
+                    <span class="toolbar-item-label" id="toggleViewLabel">Table View</span>
+                </div>
+                <div class="toolbar-item" title="Patient EMR">
+                    <i class="fa-solid fa-file-medical toolbar-icon"></i>
+                    <span class="toolbar-item-label">EMR</span>
+                </div>
+                <div class="toolbar-item" title="Generate Reports">
+                    <i class="fa-solid fa-chart-line toolbar-icon"></i>
+                    <span class="toolbar-item-label">Reports</span>
+                </div>
+                <div class="toolbar-item" title="Print Current List">
+                    <i class="fa-solid fa-print toolbar-icon"></i>
+                    <span class="toolbar-item-label">Print List</span>
+                </div>
+                <div class="toolbar-item" title="Send Notification">
+                    <i class="fa-solid fa-envelope toolbar-icon"></i>
+                    <span class="toolbar-item-label">Notify</span>
+                </div>
+                <div class="toolbar-item" title="User Management">
+                    <i class="fa-solid fa-users toolbar-icon"></i>
+                    <span class="toolbar-item-label">Users</span>
+                </div>
+            </div>
+            
+            <div class="toolbar-dynamic-wrapper hidden" id="dynamicToolbar">
+                คลิกที่แถวผู้ป่วยเพื่อแสดงเมนูการดำเนินการเฉพาะ
+            </div>
+
+            <div class="toolbar-item panel-toggle-item" title="เปิด/ปิด ฟังก์ชันแสดงแผงรายละเอียดผู้ป่วย" style="border-right: none;">
+                <label for="panel-visibility-toggle" style="font-size: 0.7em; font-weight: 600; color: #555; margin-bottom: 3px;" id="panelToggleLabel">Panel OFF</label>
+                <label class="switch" style="width: 30px; height: 18px;">
+                    <input type="checkbox" id="panel-visibility-toggle"> 
+                    <span class="slider round"></span>
+                </label>
+            </div>
+        </nav>
+
+        <div class="dashboard-content">
+            <aside class="status-sidebar">
+                <div class="status-card active" data-status="All">
+                    <div class="status-card-count blue" id="allStatusCount"></div>
+                    <div class="status-card-title">All Status</div>
+                </div>
+                
+                <div class="status-card" data-status="Registered">
+                    <div class="status-card-count blue">8</div>
+                    <div class="status-card-title">Registered</div>
+                </div>
+                <div class="status-card" data-status="Arrived">
+                    <div class="status-card-count blue">5</div>
+                    <div class="status-card-title">Arrived</div>
+                </div>
+                <div class="status-card" data-status="Send to Doctor">
+                    <div class="status-card-count blue">3</div>
+                    <div class="status-card-title">Send to Doctor</div>
+                </div>
+                <div class="status-card" data-status="ExamStarted">
+                    <div class="status-card-count orange">2</div>
+                    <div class="status-card-title">Exam Started</div>
+                </div>
+                <div class="status-card" data-status="Investigate">
+                    <div class="status-card-count red">1</div>
+                    <div class="status-card-title">Investigate</div>
+                </div>
+                <div class="status-card" data-status="ExamFinished">
+                    <div class="status-card-count green">2</div>
+                    <div class="status-card-title">Exam Finished</div>
+                </div>
+                <div class="status-card" data-status="ChargeClosed">
+                    <div class="status-card-count green">3</div>
+                    <div class="status-card-title">Charge Closed</div>
+                </div>
+                <div class="status-card" data-status="AdmitRequest">
+                    <div class="status-card-count red">1</div>
+                    <div class="status-card-title">Admit Request</div>
+                </div>
+				<div class="status-card" data-status="DocumentsIncomplete">
+					<div class="status-card-count red">2</div>
+					<div class="status-card-title">Documemts Incomplete</div>
+				</div>
+            </aside>
+
+            <main class="main-content-box" id="mainContentBox">
+                <div class="main-table-header" id="tableHeader">All Patients</div> 
+
+                <div class="patient-timeline-container hidden-view" id="patientTimelineContainer">
+                </div>
+                
+                <div class="table-wrapper" id="tableWrapper">
+                    <table class="dynamic-data-table">
+                        <thead>
+                            <tr id="table-headers-row">
+                                <th style="width: 6%;">Reg. Time</th>
+                                <th style="width: 4%;">HN</th>
+                                <th style="width: 6%;">VN</th> 
+                                <th style="width: 18%;">Patient Name</th>
+                                <th style="width: 4%;">Flag</th> 
+                                <th style="width: 6%;">DOB</th> 
+                                <th style="width: 4%;">Age</th> 
+                                <th style="width: 4%;">Gender</th> 
+                                <th style="width: 15%;">Dr. Name</th>
+                                <th style="width: 7%;">Reg Type</th>
+                                <th style="width: 10%;">Location</th>
+                                <th class="pending-list-header" style="width: 12%;">Current Status</th>
+                                <th style="width: 7%;">TOTAL TIME (Min)</th> 
+                            </tr>
+                        </thead>
+                        <tbody id="dynamicDataTableBody">
+                            </tbody>
+                    </table>
+                </div>
+
+            </main>
+        </div>
+    </div>
+    
+    <div class="patient-detail-panel" id="detailPanel">
+        <div class="panel-header">
+            <h3 id="patientNameHeader">... Loading ...</h3>
+            <button class="close-panel-btn" id="closePanelBtn" title="Close Panel"><i class="fa-solid fa-xmark"></i></button>
+        </div>
+        <div class="panel-content">
+            <div class="alert-section" id="allergyAlert">
+                </div>
+            <div class="underlying-section">
+                <h4>โรคประจำตัว (Underlying Conditions)</h4>
+                <div id="underlyingConditions"></div>
+            </div>
+            <div style="margin-top: 20px;">
+                <h4>ข้อมูลการมาตรวจ</h4>
+                <div class="detail-item">
+                    <strong>HN / VN</strong>
+                    <span id="detailHn" style="font-weight: bold;"></span> / <span id="detailVn"></span>
+                </div>
+                <div class="detail-item">
+                    <strong>แพทย์ผู้รับผิดชอบ</strong>
+                    <span id="detailDoctor"></span>
+                </div>
+                <div class="detail-item">
+                    <strong>ประเภทการลงทะเบียน / สถานที่</strong>
+                    <span id="detailRegType"></span> / <span id="detailLocation"></span>
+                </div>
+                <div class="detail-item">
+                    <strong>เวลาลงทะเบียน</strong>
+                    <span id="detailRegTime"></span>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <div id="labListModal" style="position: fixed; top: 50%; left: 50%; transform: translate(-50%, -50%); background-color: white; padding: 30px; border-radius: 10px; box-shadow: 0 5px 15px rgba(0,0,0,0.3); z-index: 2000; display: none; width: 500px; max-width: 90%; max-height: 80vh; overflow-y: auto;">
+        <h3 style="margin-top: 0; color: #007bff;">Lab Order List Mockup</h3>
+        <p id="labModalPatientInfo" style="font-weight: bold; border-bottom: 1px solid #eee; padding-bottom: 10px;"></p>
+        <table style="width: 100%; border-collapse: collapse; margin-top: 10px;">
+            <thead>
+                <tr style="background-color: #f0f4f8;">
+                    <th style="padding: 8px; text-align: left; font-size: 0.8em;">Test/Panel</th>
+                    <th style="padding: 8px; text-align: left; font-size: 0.8em; width: 30%;">Status</th>
+                    <th style="padding: 8px; text-align: left; font-size: 0.8em; width: 20%;">Time</th>
+                </tr>
+            </thead>
+            <tbody id="labListTableBody">
+            </tbody>
+        </table>
+        <button id="closeLabModalBtn" style="margin-top: 20px; padding: 10px 15px; background-color: #dc3545; color: white; border: none; border-radius: 5px; cursor: pointer;">Close</button>
+    </div>
+    <div id="modalOverlay" style="position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.5); z-index: 1999; display: none;"></div>
+
+    <script>
+        const statusCards = document.querySelectorAll('.status-card');
+        const mainTableBody = document.getElementById('dynamicDataTableBody');
+        const tableHeader = document.getElementById('tableHeader');
+        const detailPanel = document.getElementById('detailPanel');
+        const closePanelBtn = document.getElementById('closePanelBtn');
+        const dynamicToolbar = document.getElementById('dynamicToolbar');
+        const panelVisibilityToggle = document.getElementById('panel-visibility-toggle');
+        const panelLabel = document.getElementById('panelToggleLabel'); // ใช้ ID ใหม่ที่เพิ่มเข้าไป
+        const allStatusCount = document.getElementById('allStatusCount');
+        const drawerBtn = document.getElementById('drawerBtn');
+        const drawerDropdown = document.getElementById('drawerDropdown');
+        
+        // Target Element
+        const patientTimelineContainer = document.getElementById('patientTimelineContainer'); 
+        
+        // NEW Modal Elements
+        const labListModal = document.getElementById('labListModal');
+        const modalOverlay = document.getElementById('modalOverlay');
+        const closeLabModalBtn = document.getElementById('closeLabModalBtn');
+        
+        let selectedHN = null;
+        let currentStatus = 'All';
+        // กำหนด isPanelVisible ให้เป็นค่าเริ่มต้นตาม checkbox
+        let isPanelVisible = panelVisibilityToggle.checked; 
+
+        // --- Data Mockup and Utility Functions (updated) ---
+        function calculateTimeInStatus(startTimeStr) {
+            const now = new Date();
+            const today = now.toISOString().split('T')[0];
+            const start = new Date(`${today}T${startTimeStr}:00`);
+            if (start > now) return 0;
+            const diffMs = now - start;
+            return Math.floor(diffMs / 60000);
+        }
+
+        function generateFlags(flags) {
+            if (!flags || flags.length === 0) return '';
+            const iconMap = {
+                VIP: '<i class="fa-solid fa-crown flag-vip" title="VIP Patient"></i>',
+                Pregnant: '<i class="fa-solid fa-person-pregnant flag-pregnant" title="Pregnant"></i>',
+                Critical: '<i class="fa-solid fa-circle-exclamation flag-critical" title="Critical/High Alert"></i>',
+            };
+            return flags.map(flag => iconMap[flag] || '').join('');
+        }
+
+        // Mockup of additional patient details, including milestones and NEW: labOrders
+        const patientDetailsData = {
+            'R003': {
+                name: 'สมบัติ มุ่งมั่น', hn: 'R003', vn: 'V003', dob: '1975-11-01', age: '50 Y', gender: 'M', drName: 'นพ. วีรวัฒน์', regType: 'Appointment', location: 'Corporate Site',
+                allergies: ['Aspirin', 'Shellfish'], underlying: ['Hypertension (HT)', 'Asthma', 'Chronic Kidney Disease (CKD)'], registerTime: '09:15',
+                milestones: [
+                    { time: '09:15', status: 'Registered' },
+                    { time: '09:25', status: 'Arrived' },
+                    { time: '09:40', status: 'Send to Doctor' },
+                    { time: '09:50', status: 'Exam Started', active: true }, // Mark current status
+                ],
+                // NEW LAB DATA
+                labOrders: [
+                    { test: 'CBC', status: 'Result Pending', time: '09:55', statusColor: '#fd7e14' },
+                    { test: 'LFT', status: 'Result Pending', time: '09:55', statusColor: '#fd7e14' },
+                    { test: 'Urine Analysis', status: 'Completed', time: '10:10', statusColor: '#28a745' },
+                ]
+            },
+            'VI01': {
+                name: 'รอผลแล็บ', hn: 'VI01', vn: 'I001', dob: '1970-05-05', age: '55 Y', gender: 'M', drName: 'นพ. วีรวัฒน์', regType: 'Appointment', location: 'Check-up Center',
+                allergies: ['Penicillin'], underlying: ['Type 2 Diabetes Mellitus (DM)'], registerTime: '12:00',
+                milestones: [
+                    { time: '12:00', status: 'Registered' },
+                    { time: '12:05', status: 'Arrived' },
+                    { time: '12:15', status: 'Send to Doctor' },
+                    { time: '12:30', status: 'Exam Started' },
+                    { time: '13:00', status: 'Investigate', active: true }, // Mark current status
+                ],
+                // NEW LAB DATA
+                labOrders: [
+                    { test: 'Blood Culture', status: 'Sent to Lab', time: '12:45', statusColor: '#007bff' },
+                    { test: 'COVID-19 Swab', status: 'Result Pending', time: '13:05', statusColor: '#fd7e14' },
+                ]
+            },
+            'R001': {
+                name: 'สมชาย ใช่แล้ว', hn: 'R001', vn: 'V001', dob: '1985-01-20', age: '40 Y', gender: 'M', drName: 'นพ. วีรวัฒน์', regType: 'Appointment', location: 'Check-up Center',
+                allergies: [], underlying: ['None'], registerTime: '08:00',
+                milestones: [
+                    { time: '08:00', status: 'Registered' },
+                    { time: '08:15', status: 'Arrived' },
+                    { time: '08:45', status: 'Send to Doctor' },
+                    { time: '09:30', status: 'Exam Started' },
+                    { time: '10:30', status: 'Exam Finished' },
+                    { time: '11:00', status: 'Charge Closed', active: true },
+                ],
+                // NEW LAB DATA
+                labOrders: [
+                    { test: 'Cholesterol Panel', status: 'Completed', time: '08:50', statusColor: '#28a745' },
+                    { test: 'Uric Acid', status: 'Completed', time: '08:50', statusColor: '#28a745' },
+                ]
+            },
+            'R008': {
+                name: 'ชูใจ ใจดี', hn: 'R008', vn: 'R008', dob: '2002-02-02', age: '23 Y', gender: 'F', drName: 'นพ. วีรวัฒน์', regType: 'Walk-in', location: 'Check-up Center', flags: ['Critical'],
+                allergies: ['Diclofenac'], underlying: ['SLE'], registerTime: '11:00',
+                milestones: [
+                    { time: '11:00', status: 'Registered', active: true } // Mark current status
+                ]
+            },
+            'AD01': {
+                name: 'ขอ Admit', hn: 'AD01', vn: 'VAD1', dob: '1955-04-04', age: '70 Y', gender: 'F', drName: 'นพ. อาทิตย์', regType: 'Walk-in', location: 'Check-up Center', flags: ['Critical'],
+                allergies: ['Sulfa Drug'], underlying: ['Coronary Artery Disease (CAD)', 'Hypothyroidism'], registerTime: '15:30',
+                milestones: [
+                    { time: '15:30', status: 'Registered' },
+                    { time: '15:35', status: 'Arrived' },
+                    { time: '15:45', status: 'Send to Doctor' },
+                    { time: '16:00', status: 'Admit Request', active: true }, // Mark current status
+                ]
+				
+			},
+			'DI01': {
+                name: 'เอกสาร ขาดหาย', hn: 'DI01', vn: 'V901', dob: '1980-01-01', age: '45 Y', gender: 'F', drName: 'พญ. สุดารัตน์', regType: 'Walk-in', location: 'Check-up Center', flags: ['Critical'],
+                allergies: ['Penicillin'], underlying: ['Type 2 Diabetes Mellitus (DM)'], registerTime: '07:30',
+                milestones: [
+                    { time: '07:30', status: 'Registered' },
+                    { time: '07:45', status: 'Arrived', active: true }, // Mark current status
+                ]
+            },
+            'DI02': {
+                name: 'นามสกุล ตกหล่น', hn: 'DI02', vn: 'V902', dob: '1995-05-05', age: '30 Y', gender: 'M', drName: 'นพ. วีรวัฒน์', regType: 'Appointment', location: 'Corporate Site', flags: [],
+                allergies: [], underlying: ['None'], registerTime: '08:05',
+                milestones: [
+                    { time: '08:05', status: 'Registered' },
+                    { time: '08:20', status: 'Arrived', active: true }, // Mark current status
+                ]
+            },
+			
+        };
+
+        function getPatientDetails(hn) {
+            let currentPatientList;
+            // Simplified patient retrieval from all data mock
+            currentPatientList = Object.values(patientData).flat();
+            
+            const patientBase = currentPatientList.find(p => p.hn === hn) || {};
+            return {
+                name: patientBase.name || 'ผู้ป่วยทั่วไป',
+                currentStatus: patientBase.currentStatus,
+                allergies: patientDetailsData[hn]?.allergies || [],
+                underlying: patientDetailsData[hn]?.underlying || ['None'],
+                milestones: patientDetailsData[hn]?.milestones || [{time: patientBase.registerTime, status: patientBase.currentStatus || 'Registered', active: true}], 
+                // NEW: Include Lab Orders
+                labOrders: patientDetailsData[hn]?.labOrders || [],
+                ...patientBase,
+                ...(patientDetailsData[hn] || {}),
+            };
+        }
+
+        const patientData = {
+            Registered: [
+                { vn: 'V001', hn: 'R001', registerTime: '08:00', name: 'สมชาย ใช่แล้ว', dob: '1985-01-20', age: '40 Y', gender: 'M', drName: 'นพ. วีรวัฒน์', regType: 'Appointment', location: 'Check-up Center', flags: ['VIP'], currentStatus: 'Registered' },
+                { vn: 'V002', hn: 'R002', registerTime: '08:30', name: 'สมหญิง ดีจริง', dob: '1990-05-15', age: '35 Y', gender: 'F', drName: 'พญ. สุดารัตน์', regType: 'Walk-in', location: 'Check-up Center', flags: ['Pregnant'], currentStatus: 'Registered' },
+                { vn: 'V003', hn: 'R003', registerTime: '09:15', name: 'สมบัติ มุ่งมั่น', dob: '1975-11-01', age: '50 Y', gender: 'M', drName: 'นพ. วีรวัฒน์', regType: 'Appointment', location: 'Corporate Site', flags: ['Critical'], currentStatus: 'Registered' },
+                { vn: 'V004', hn: 'R004', registerTime: '10:00', name: 'พงศกร สุขศรี', dob: '1968-07-22', age: '57 Y', gender: 'M', drName: 'นพ. อาทิตย์', regType: 'Appointment', location: 'Check-up Center', flags: [], currentStatus: 'Registered' },
+                { vn: 'V005', hn: 'R005', registerTime: '10:30', name: 'ปรีชา กล้าหาญ', dob: '1995-03-10', age: '30 Y', gender: 'M', drName: 'พญ. สุดารัตน์', regType: 'Walk-in', location: 'Corporate Site', flags: [], currentStatus: 'Registered' },
+                { vn: 'V006', hn: 'R006', registerTime: '11:00', name: 'ดวงใจ งามพร้อม', dob: '1988-12-05', age: '37 Y', gender: 'F', drName: 'นพ. วีรวัฒน์', regType: 'Appointment', location: 'Check-up Center', flags: [], currentStatus: 'Registered' },
+                { vn: 'V007', hn: 'R007', registerTime: '11:30', name: 'วีระชัย สุขสบาย', dob: '1972-09-18', age: '53 Y', gender: 'M', drName: 'นพ. อาทิตย์', regType: 'Walk-in', location: 'Corporate Site', flags: ['VIP'], currentStatus: 'Registered' },
+                { vn: 'V008', hn: 'R008', registerTime: '12:00', name: 'ชูใจ ใจดี', dob: '2002-02-02', age: '23 Y', gender: 'F', drName: 'นพ. วีรวัฒน์', regType: 'Walk-in', location: 'Check-up Center', flags: ['Critical'], currentStatus: 'Registered' },
+            ],
+            Arrived: [
+                { vn: 'V009', hn: 'R009', registerTime: '08:10', name: 'สมาน ใจซื่อ', dob: '1965-06-12', age: '60 Y', gender: 'M', drName: 'พญ. สุดารัตน์', regType: 'Appointment', location: 'Check-up Center', flags: [], currentStatus: 'Arrived' },
+                { vn: 'V010', hn: 'R010', registerTime: '09:00', name: 'มะลิ หอมหวาน', dob: '1980-01-01', age: '45 Y', gender: 'F', drName: 'นพ. วีรวัฒน์', regType: 'Walk-in', location: 'Corporate Site', flags: [], currentStatus: 'Arrived' },
+                { vn: 'V011', hn: 'R011', registerTime: '10:15', name: 'สมศักดิ์ ขยัน', dob: '1978-08-25', age: '47 Y', gender: 'M', drName: 'นพ. อาทิตย์', regType: 'Appointment', location: 'Check-up Center', flags: ['VIP'], currentStatus: 'Arrived' },
+                { vn: 'V012', hn: 'R012', registerTime: '11:45', name: 'นวลจันทร์ สวยใส', dob: '1992-04-16', age: '33 Y', gender: 'F', drName: 'พญ. สุดารัตน์', regType: 'Appointment', location: 'Corporate Site', flags: ['Pregnant'], currentStatus: 'Arrived' },
+                { vn: 'V013', hn: 'R013', registerTime: '12:30', name: 'วิชัย มั่งคั่ง', dob: '1970-10-10', age: '55 Y', gender: 'M', drName: 'นพ. วีรวัฒน์', regType: 'Walk-in', location: 'Check-up Center', flags: [], currentStatus: 'Arrived' },
+            ],
+            'Send to Doctor': [
+                { vn: 'V014', hn: 'R014', registerTime: '07:45', name: 'สุภาพร อ่อนหวาน', dob: '1998-02-28', age: '27 Y', gender: 'F', drName: 'นพ. อาทิตย์', regType: 'Appointment', location: 'Corporate Site', flags: [], currentStatus: 'Send to Doctor' },
+                { vn: 'V015', hn: 'R015', registerTime: '08:50', name: 'ธนากร ร่ำรวย', dob: '1983-11-11', age: '42 Y', gender: 'M', drName: 'พญ. สุดารัตน์', regType: 'Walk-in', location: 'Check-up Center', flags: [], currentStatus: 'Send to Doctor' },
+                { vn: 'V016', hn: 'R016', registerTime: '10:50', name: 'จินตนา เย็นใจ', dob: '1960-05-20', age: '65 Y', gender: 'F', drName: 'นพ. วีรวัฒน์', regType: 'Appointment', location: 'Corporate Site', flags: ['Critical'], currentStatus: 'Send to Doctor' },
+            ],
+            ExamStarted: [
+                { vn: 'V017', hn: 'R003', registerTime: '09:15', name: 'สมบัติ มุ่งมั่น', dob: '1975-11-01', age: '50 Y', gender: 'M', drName: 'นพ. วีรวัฒน์', regType: 'Appointment', location: 'Corporate Site', flags: ['Critical'], currentStatus: 'ExamStarted' },
+                { vn: 'V018', hn: 'R018', registerTime: '13:00', name: 'ชาญชัย ชาญฉลาด', dob: '1990-07-07', age: '35 Y', gender: 'M', drName: 'พญ. สุดารัตน์', regType: 'Walk-in', location: 'Check-up Center', flags: [], currentStatus: 'ExamStarted' },
+            ],
+            Investigate: [
+                { vn: 'V019', hn: 'VI01', registerTime: '12:00', name: 'รอผลแล็บ', dob: '1970-05-05', age: '55 Y', gender: 'M', drName: 'นพ. วีรวัฒน์', regType: 'Appointment', location: 'Check-up Center', flags: [], currentStatus: 'Investigate' },
+            ],
+            ExamFinished: [
+                { vn: 'V020', hn: 'R020', registerTime: '08:20', name: 'อรุณ รุ่งเรือง', dob: '1988-03-03', age: '37 Y', gender: 'M', drName: 'นพ. อาทิตย์', regType: 'Appointment', location: 'Corporate Site', flags: ['VIP'], currentStatus: 'ExamFinished' },
+                { vn: 'V021', hn: 'R021', registerTime: '09:40', name: 'วาสนา ดีงาม', dob: '1973-12-25', age: '52 Y', gender: 'F', drName: 'พญ. สุดารัตน์', regType: 'Walk-in', location: 'Check-up Center', flags: [], currentStatus: 'ExamFinished' },
+            ],
+            ChargeClosed: [
+                { vn: 'V022', hn: 'R001', registerTime: '08:00', name: 'สมชาย ใช่แล้ว', dob: '1985-01-20', age: '40 Y', gender: 'M', drName: 'นพ. วีรวัฒน์', regType: 'Appointment', location: 'Check-up Center', flags: ['VIP'], currentStatus: 'ChargeClosed' },
+                { vn: 'V023', hn: 'R023', registerTime: '10:00', name: 'มานี มีของ', dob: '2000-08-17', age: '25 Y', gender: 'F', drName: 'นพ. อาทิตย์', regType: 'Walk-in', location: 'Corporate Site', flags: [], currentStatus: 'ChargeClosed' },
+                { vn: 'V024', hn: 'R024', registerTime: '11:15', name: 'ปิติ ชอบใจ', dob: '1991-09-09', age: '34 Y', gender: 'M', drName: 'พญ. สุดารัตน์', regType: 'Appointment', location: 'Check-up Center', flags: [], currentStatus: 'ChargeClosed' },
+            ],
+            AdmitRequest: [
+                { vn: 'V025', hn: 'AD01', registerTime: '15:30', name: 'ขอ Admit', dob: '1955-04-04', age: '70 Y', gender: 'F', drName: 'นพ. อาทิตย์', regType: 'Walk-in', location: 'Check-up Center', flags: ['Critical'], currentStatus: 'AdmitRequest' },
+            ],
+			
+			DocumentsIncomplete: [
+				{ vn: 'V901', hn: 'DI01', registerTime: '07:30', name: 'เอกสาร ขาดหาย', dob: '1980-01-01', age: '45 Y', gender: 'F', drName: 'พญ. สุดารัตน์', regType: 'Walk-in', location: 'Check-up Center', flags: ['Critical'], currentStatus: 'DocumentsIncomplete' },
+				{ vn: 'V902', hn: 'DI02', registerTime: '08:05', name: 'นามสกุล ตกหล่น', dob: '1995-05-05', age: '30 Y', gender: 'M', drName: 'นพ. วีรวัฒน์', regType: 'Appointment', location: 'Corporate Site', flags: [], currentStatus: 'DocumentsIncomplete' },
+			],
+        };
+
+
+        // --- Core Functions ---
+
+        // MODIFIED: Function to render the individual patient timeline (Horizontal)
+        function renderTimeline(patient) {
+            const milestones = patient.milestones || [];
+            if (milestones.length === 0) {
+                // เพิ่ม padding-top เพื่อให้ข้อความอยู่กลางแนวตั้งของ container
+                return '<p style="text-align: center; color: #777; padding-top: 40px;">ไม่พบข้อมูลไทม์ไลน์สำหรับผู้ป่วยรายนี้</p>';
+            }
+
+            const milestoneHTML = milestones.map(m => {
+                const isActive = m.active ? 'active-status' : ''; // Check the 'active' property
+                return `
+                    <div class="timeline-item ${isActive}">
+                        <span class="timeline-item-status">${m.status}</span>
+                        <span class="timeline-item-time">${m.time}</span>
+                    </div>
+                `;
+            }).join('');
+
+            // ใช้ class 'timeline-item-list' ที่เราได้แก้ไข CSS ให้เป็นแนวนอน
+            return `<div class="timeline-item-list">${milestoneHTML}</div>`;
+        }
+
+        function loadPatients(status) {
+            currentStatus = status;
+            const patientList = currentStatus === 'All' 
+                ? Object.values(patientData).flat()
+                : patientData[currentStatus] || [];
+            
+            mainTableBody.innerHTML = ''; // Clear existing data
+            
+            // **Crucial: Reset timeline and selection when changing status**
+            toggleRowSelection(null); 
+            // Header is reset inside toggleRowSelection(null) or updated inside toggleRowSelection(row)
+
+            // Sort data: Critical first, then by registration time
+            patientList.sort((a, b) => {
+                const aCritical = a.flags && a.flags.includes('Critical');
+                const bCritical = b.flags && b.flags.includes('Critical');
+
+                if (aCritical && !bCritical) return -1;
+                if (!aCritical && bCritical) return 1;
+
+                // Sort by Register Time (earlier first)
+                return a.registerTime.localeCompare(b.registerTime);
+            });
+
+
+            patientList.forEach(patient => {
+                const row = mainTableBody.insertRow();
+                row.dataset.hn = patient.hn;
+                row.dataset.name = patient.name;
+                row.dataset.regTime = patient.registerTime;
+                
+                const totalTime = calculateTimeInStatus(patient.registerTime);
+                const flagsHtml = generateFlags(patient.flags);
+                const statusBadge = `<span class="status-badge ${patient.regType.replace(/-|\s/g, '')}">${patient.regType}</span>`;
+
+                row.innerHTML = `
+                    <td>${patient.registerTime}</td>
+                    <td>${patient.hn}</td>
+                    <td>${patient.vn}</td>
+                    <td>${patient.name}</td>
+                    <td><div class="patient-flag">${flagsHtml}</div></td>
+                    <td>${patient.dob}</td>
+                    <td>${patient.age}</td>
+                    <td>${patient.gender}</td>
+                    <td>${patient.drName}</td>
+                    <td>${statusBadge}</td>
+                    <td>${patient.location}</td>
+                    <td>${patient.currentStatus}</td>
+                    <td>${totalTime}</td>
+                `;
+            });
+            // Re-render the dynamic toolbar (hidden or default text)
+            renderDynamicToolbar(null, currentStatus);
+        }
+
+        // MODIFIED: Function to handle row selection and timeline display
+        function toggleRowSelection(row) {
+            const allRows = mainTableBody.querySelectorAll('tr');
+            let newHN = null;
+            
+            // 1. Clear previous selection and hide timeline/reset header
+            allRows.forEach(r => r.classList.remove('selected'));
+            // Always hide the timeline when starting the selection process
+            patientTimelineContainer.classList.add('hidden-view'); 
+            tableHeader.textContent = `${currentStatus} Patients`;
+            renderDynamicToolbar(null, currentStatus);
+            
+            // ตรวจสอบว่าคลิกซ้ำแถวเดิมหรือไม่
+            let previousSelectedHN = selectedHN;
+            selectedHN = null;
+            
+            // Ensure Lab Modal is closed when selection changes
+            closeLabListModal();
+
+
+            if (row) {
+                newHN = row.dataset.hn;
+                
+                // 2. Check for deselection (clicking the already selected row)
+                if (newHN === previousSelectedHN) {
+                    // Deselection handled in step 1, just return
+                    // และปิด panel ถ้าเป็นแถวที่ถูกเลือกอยู่แล้วและกำลังถูก deselect
+                    detailPanel.classList.remove('open');
+                    return; 
+                }
+                
+                // 3. Handle New Selection
+                const patient = getPatientDetails(newHN);
+
+                row.classList.add('selected');
+                selectedHN = newHN;
+
+                // Update Header and Dynamic Toolbar
+                tableHeader.textContent = `Timeline: ${patient.name} (HN: ${patient.hn})`;
+                renderDynamicToolbar(patient, currentStatus);
+
+                // Populate and Show Timeline
+                patientTimelineContainer.innerHTML = renderTimeline(patient);
+                patientTimelineContainer.classList.remove('hidden-view'); // **ทำให้ Timeline แสดงผล**
+
+                // **เปิด Panel ก็ต่อเมื่อ isPanelVisible เป็น true เท่านั้น**
+                if (isPanelVisible) {
+                    updateDetailPanel(patient);
+                    detailPanel.classList.add('open'); // **เปิด Panel เมื่อคลิกแถวและฟังก์ชัน ON**
+                } else {
+                     detailPanel.classList.remove('open'); // มั่นใจว่า Panel ถูกปิดอยู่หากฟังก์ชัน OFF
+                }
+            } else {
+                // If row is null (e.g., status card click), clear selection
+                 detailPanel.classList.remove('open');
+            }
+        }
+
+        // --- NEW: Lab List Modal Functions ---
+        
+        function showLabListModal(patient) {
+            const tableBody = document.getElementById('labListTableBody');
+            const patientInfo = document.getElementById('labModalPatientInfo');
+            
+            // 1. Populate Header
+            patientInfo.textContent = `Patient: ${patient.name} (HN: ${patient.hn})`;
+
+            // 2. Populate Table
+            tableBody.innerHTML = '';
+            const labOrders = patient.labOrders || [];
+
+            if (labOrders.length === 0) {
+                tableBody.innerHTML = '<tr><td colspan="3" style="text-align: center; color: #999; padding: 15px; font-style: italic;">No lab orders found for this patient.</td></tr>';
+            } else {
+                labOrders.forEach(order => {
+                    const row = tableBody.insertRow();
+                    row.innerHTML = `
+                        <td style="padding: 8px; font-size: 0.9em;">${order.test}</td>
+                        <td style="padding: 8px; font-size: 0.9em; font-weight: bold; color: ${order.statusColor};">${order.status}</td>
+                        <td style="padding: 8px; font-size: 0.9em; color: #555;">${order.time}</td>
+                    `;
+                });
+            }
+
+            // 3. Show Modal
+            labListModal.style.display = 'block';
+            modalOverlay.style.display = 'block';
+        }
+        
+        function closeLabListModal() {
+            labListModal.style.display = 'none';
+            modalOverlay.style.display = 'none';
+        }
+
+        // --- Other Utility Functions (updated) ---
+
+        function calculateTotalPatients() {
+            const total = Object.values(patientData).flat().length;
+            allStatusCount.textContent = total;
+        }
+
+        function renderDynamicToolbar(patient, status) {
+            if (patient) {
+                dynamicToolbar.classList.remove('hidden');
+                dynamicToolbar.innerHTML = `
+                    <div class="toolbar-item" title="Quick Update Status">
+                        <i class="fa-solid fa-sync toolbar-icon"></i>
+                    </div>
+                    <div class="toolbar-item" title="View Patient's EMR">
+                        <i class="fa-solid fa-file-medical toolbar-icon"></i>
+                    </div>
+                    <div class="toolbar-item" title="Send to Lab/Radiology">
+                        <i class="fa-solid fa-vial-circle-check toolbar-icon"></i>
+                    </div>
+                    <div class="toolbar-item" title="Send to Doctor">
+                        <i class="fa-solid fa-user-doctor toolbar-icon"></i>
+                    </div>
+                    <div class="toolbar-item" title="Admit Patient">
+                        <i class="fa-solid fa-hospital toolbar-icon"></i>
+                    </div>
+                    <div style="margin-left: auto; font-weight: 600; font-size: 0.9em; color: #007bff; flex-shrink: 0;">
+                        ${patient.name} (${patient.currentStatus})
+                    </div>
+                `;
+            } else {
+                dynamicToolbar.classList.add('hidden');
+                dynamicToolbar.innerHTML = 'คลิกที่แถวผู้ป่วยเพื่อแสดงเมนูการดำเนินการเฉพาะ';
+            }
+        }
+
+        function updateDetailPanel(patient) {
+            const allergyAlert = document.getElementById('allergyAlert');
+            const underlyingConditions = document.getElementById('underlyingConditions');
+            
+            document.getElementById('patientNameHeader').textContent = `${patient.name}`;
+            document.getElementById('detailHn').textContent = patient.hn;
+            document.getElementById('detailVn').textContent = patient.vn;
+            document.getElementById('detailDoctor').textContent = patient.drName;
+            document.getElementById('detailRegType').textContent = patient.regType;
+            document.getElementById('detailLocation').textContent = patient.location;
+            document.getElementById('detailRegTime').textContent = patient.registerTime;
+            
+            // Allergy Alert
+            if (patient.allergies.length > 0 && patient.allergies[0].toLowerCase() !== 'none') {
+                allergyAlert.className = 'allergy-alert-banner';
+                allergyAlert.innerHTML = `<i class="fa-solid fa-triangle-exclamation"></i> ALERT: แพ้ ${patient.allergies.join(', ')}`;
+            } else {
+                allergyAlert.className = '';
+                allergyAlert.innerHTML = '';
+            }
+
+            // Underlying Conditions
+            underlyingConditions.innerHTML = patient.underlying.map(cond => 
+                `<span class="underlying-badge ${cond.toLowerCase() === 'none' ? 'nka' : ''}">${cond}</span>`
+            ).join('');
+        }
+
+        // ฟังก์ชันควบคุมสถานะของฟังก์ชัน Panel
+        function togglePanelVisibility() {
+            isPanelVisible = panelVisibilityToggle.checked;
+            if (isPanelVisible) {
+                panelLabel.textContent = 'Panel ON';
+                // หากฟังก์ชัน ON และมีผู้ป่วยถูกเลือกอยู่แล้ว ให้เปิด Panel ขึ้นมา
+                if (selectedHN) {
+                     const patient = getPatientDetails(selectedHN);
+                     updateDetailPanel(patient);
+                     detailPanel.classList.add('open'); 
+                }
+            } else {
+                // หากฟังก์ชัน OFF ให้ปิด Panel ทันที
+                detailPanel.classList.remove('open'); 
+                panelLabel.textContent = 'Panel OFF';
+            }
+        }
+
+        // --- Hotkey Function (MODIFIED TO USE event.code) ---
+        function handleHotkey(event) {
+            
+            // *** แก้ไข: ใช้ event.code เพื่อระบุตำแหน่งแป้นพิมพ์ (Physical Key) ***
+            const code = event.code;
+            const isCtrlOrCmd = event.ctrlKey || event.metaKey;
+
+            // 1. **PRIORITY PREVENTION:** Prevent browser default actions immediately for high-conflict keys.
+            // ใช้ KeyE, KeyL, KeyS, KeyP, Escape (Code จะทำงานแม้เปลี่ยนเป็นภาษาไทย)
+            if ((isCtrlOrCmd && (code === 'KeyE' || code === 'KeyL' || code === 'KeyS')) || code === 'KeyP' || code === 'Escape') {
+                event.preventDefault(); 
+            }
+
+            // 2. **INPUT FOCUS CHECK (Secondary Check):** If typing in an INPUT/SELECT/TEXTAREA, block single letter keys ('P').
+            if (event.target.tagName === 'INPUT' || event.target.tagName === 'SELECT' || event.target.tagName === 'TEXTAREA') {
+                if (!isCtrlOrCmd) { 
+                    return; 
+                }
+            }
+            
+            // 3. **Hotkey Execution**
+            if (isCtrlOrCmd) {
+                if (code === 'KeyE') { // Ctrl + E: Search (Mockup)
+                    alert('Hotkey Activated: Ctrl + E (Search)');
+                    // Future: Trigger search function or open search modal
+                } else if (code === 'KeyL') { // Ctrl + L: Lab List (NEW)
+                    if (selectedHN) {
+                        const patient = getPatientDetails(selectedHN);
+                        showLabListModal(patient);
+                    } else {
+                        alert('Ctrl + L: Please select a patient row first to view the Lab List.');
+                    }
+                } else if (code === 'KeyS') { // Ctrl + S: Toggle Table/Card View (Mockup)
+                    alert('Hotkey Activated: Ctrl + S (Toggle View)');
+                    // Future: Call function to switch view
+                }
+            } else if (code === 'KeyP') { // P: Toggle Detail Panel
+                panelVisibilityToggle.checked = !isPanelVisible;
+                togglePanelVisibility();
+                
+            } else if (code === 'Escape') { // Escape: Close Panel, Clear Selection, and Close Modal
+                detailPanel.classList.remove('open');
+                closeLabListModal(); // Close Lab Modal
+                // Ensure selection is cleared and timeline is hidden
+                toggleRowSelection(null); 
+                
+            }
+        }
+
+        function setupPanelVisibilityToggle() {
+            panelVisibilityToggle.addEventListener('change', togglePanelVisibility);
+            
+            // **แก้ไข:** ปุ่ม X จะปิด Panel เท่านั้น โดยไม่กระทบต่อสถานะของ Slider
+            closePanelBtn.addEventListener('click', function() {
+                detailPanel.classList.remove('open');
+                // ***ยกเลิกการปรับสถานะของ Slider ตรงนี้***
+            });
+            
+            // NEW: Close Lab Modal button
+            closeLabModalBtn.addEventListener('click', closeLabListModal);
+            
+            // Initial state: กำหนดค่าเริ่มต้นตาม checkbox
+            togglePanelVisibility(); 
+        }
+
+        function setupDrawerLogic() {
+            drawerBtn.addEventListener('click', (event) => {
+                event.stopPropagation();
+                drawerDropdown.classList.toggle('open');
+            });
+            document.addEventListener('click', (event) => {
+                if (!drawerDropdown.contains(event.target) && !drawerBtn.contains(event.target)) {
+                    drawerDropdown.classList.remove('open');
+                }
+            });
+        }
+
+        function setupEventListeners() {
+            // Event listener for status cards
+            statusCards.forEach(card => {
+                card.addEventListener('click', function() {
+                    statusCards.forEach(c => c.classList.remove('active'));
+                    this.classList.add('active');
+                    const status = this.dataset.status;
+                    loadPatients(status);
+                });
+            });
+
+            // Event listener for table rows (using delegation)
+            mainTableBody.addEventListener('click', function(event) {
+                let targetRow = event.target.closest('tr');
+                if (targetRow && targetRow.parentElement === mainTableBody) {
+                    toggleRowSelection(targetRow);
+                }
+            });
+            
+            // Global Hotkey Listener (Crucial)
+            document.addEventListener('keydown', handleHotkey);
+        }
+
+        document.addEventListener('DOMContentLoaded', function() {
+            // โหลดข้อมูลและตั้งค่าเริ่มต้น
+            calculateTotalPatients(); // คำนวณยอดรวม All Status
+            loadPatients(currentStatus); // โหลดเริ่มต้นเป็น All
+            setupPanelVisibilityToggle();
+            setupDrawerLogic(); 
+            setupEventListeners();
+        });
+
+    </script>
+</body>
+</html>
