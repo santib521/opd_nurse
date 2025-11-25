@@ -697,6 +697,53 @@
         .timeline-item:not(:last-child) {
             margin-right: 20px; 
         }
+        
+        /* --- Modal Common Styles --- */
+        .modal {
+            position: fixed; 
+            top: 50%; 
+            left: 50%; 
+            transform: translate(-50%, -50%); 
+            background-color: white; 
+            padding: 30px; 
+            border-radius: 10px; 
+            box-shadow: 0 5px 15px rgba(0,0,0,0.3); 
+            z-index: 2000; 
+            display: none; 
+            width: 500px; 
+            max-width: 90%; 
+            max-height: 80vh; 
+            overflow-y: auto;
+        }
+        
+        /* --- Notification Specific Styles --- */
+        .notification-item {
+            border-bottom: 1px dashed #eee;
+            padding: 10px 0;
+            display: flex;
+            align-items: flex-start;
+            gap: 10px;
+        }
+        .notification-item:last-child {
+            border-bottom: none;
+        }
+        .notification-icon {
+            font-size: 1.2em;
+            padding-top: 2px;
+            flex-shrink: 0;
+        }
+        .notification-content {
+            flex-grow: 1;
+        }
+        .notification-content strong {
+            display: block;
+            font-size: 0.9em;
+            font-weight: 600;
+        }
+        .notification-content span {
+            font-size: 0.8em;
+            color: #777;
+        }
     </style>
 </head>
 <body>
@@ -797,7 +844,7 @@
                 คลิกที่แถวผู้ป่วยเพื่อแสดงเมนูการดำเนินการเฉพาะ
             </div>
 
-            <div class="toolbar-item panel-toggle-item" title="เปิด/ปิด ฟังก์ชันแสดงแผงรายละเอียดผู้ป่วย" style="border-right: none;">
+            <div class="toolbar-item panel-toggle-item" title="เปิด/ปิด Panel(P)" style="border-right: none;">
                 <label for="panel-visibility-toggle" style="font-size: 0.7em; font-weight: 600; color: #555; margin-bottom: 3px;" id="panelToggleLabel">Panel OFF</label>
                 <label class="switch" style="width: 30px; height: 18px;">
                     <input type="checkbox" id="panel-visibility-toggle"> 
@@ -919,7 +966,7 @@
         </div>
     </div>
     
-    <div id="labListModal" style="position: fixed; top: 50%; left: 50%; transform: translate(-50%, -50%); background-color: white; padding: 30px; border-radius: 10px; box-shadow: 0 5px 15px rgba(0,0,0,0.3); z-index: 2000; display: none; width: 500px; max-width: 90%; max-height: 80vh; overflow-y: auto;">
+    <div id="labListModal" class="modal">
         <h3 style="margin-top: 0; color: #007bff;">Lab Order List Mockup</h3>
         <p id="labModalPatientInfo" style="font-weight: bold; border-bottom: 1px solid #eee; padding-bottom: 10px;"></p>
         <table style="width: 100%; border-collapse: collapse; margin-top: 10px;">
@@ -935,6 +982,16 @@
         </table>
         <button id="closeLabModalBtn" style="margin-top: 20px; padding: 10px 15px; background-color: #dc3545; color: white; border: none; border-radius: 5px; cursor: pointer;">Close</button>
     </div>
+    
+    <div id="notificationModal" class="modal" style="width: 400px;">
+        <h3 style="margin-top: 0; color: #ff9800;">
+            <i class="fa-solid fa-bell"></i> System Notifications (Ctrl+N)
+        </h3>
+        <div id="notificationList" style="padding-top: 10px;">
+            </div>
+        <button id="closeNotificationModalBtn" style="margin-top: 20px; padding: 10px 15px; background-color: #555; color: white; border: none; border-radius: 5px; cursor: pointer;">Acknowledge All</button>
+    </div>
+    
     <div id="modalOverlay" style="position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.5); z-index: 1999; display: none;"></div>
 
     <script>
@@ -953,11 +1010,16 @@
         // Target Element
         const patientTimelineContainer = document.getElementById('patientTimelineContainer'); 
         
-        // NEW Modal Elements
+        // Existing Modal Elements
         const labListModal = document.getElementById('labListModal');
         const modalOverlay = document.getElementById('modalOverlay');
         const closeLabModalBtn = document.getElementById('closeLabModalBtn');
         
+        // NEW Modal Elements
+        const notificationModal = document.getElementById('notificationModal');
+        const notificationList = document.getElementById('notificationList');
+        const closeNotificationModalBtn = document.getElementById('closeNotificationModalBtn');
+
         let selectedHN = null;
         let currentStatus = 'All';
         // กำหนด isPanelVisible ให้เป็นค่าเริ่มต้นตาม checkbox
@@ -1235,8 +1297,9 @@
             let previousSelectedHN = selectedHN;
             selectedHN = null;
             
-            // Ensure Lab Modal is closed when selection changes
+            // Ensure Modals are closed when selection changes
             closeLabListModal();
+            closeNotificationModal();
 
 
             if (row) {
@@ -1277,12 +1340,15 @@
             }
         }
 
-        // --- NEW: Lab List Modal Functions ---
+        // --- Existing Lab List Modal Functions ---
         
         function showLabListModal(patient) {
             const tableBody = document.getElementById('labListTableBody');
             const patientInfo = document.getElementById('labModalPatientInfo');
             
+            // Close other modals
+            closeNotificationModal();
+
             // 1. Populate Header
             patientInfo.textContent = `Patient: ${patient.name} (HN: ${patient.hn})`;
 
@@ -1310,7 +1376,56 @@
         
         function closeLabListModal() {
             labListModal.style.display = 'none';
-            modalOverlay.style.display = 'none';
+            // Check if any other modal is open before hiding overlay
+            if (notificationModal.style.display === 'none') {
+                 modalOverlay.style.display = 'none';
+            }
+        }
+        
+        // --- NEW: Notification Modal Functions (Ctrl+N) ---
+        
+        const notificationData = [
+            { dept: 'Radiology', alert: 'Film pending for Doctor Viroj', time: '14:05', color: '#007bff', icon: 'fa-x-ray' },
+            { dept: 'Lab', alert: 'Critical result for HN: DI01', time: '13:55', color: '#dc3545', icon: 'fa-flask' },
+            { dept: 'Billing', alert: 'Insurance pre-approval needed for VN: V025', time: '13:30', color: '#ffc107', icon: 'fa-file-invoice' },
+            { dept: 'Nursing Station', alert: 'Patient R009 requires escort to OPD 3', time: '10:15', color: '#28a745', icon: 'fa-user-nurse' }
+        ];
+
+        function showNotificationModal() {
+            // Close other modals
+            closeLabListModal();
+
+            // 1. Populate List
+            notificationList.innerHTML = '';
+            
+            if (notificationData.length === 0) {
+                 notificationList.innerHTML = '<p style="text-align: center; color: #999; padding: 15px; font-style: italic;">No new notifications.</p>';
+            } else {
+                notificationData.forEach(item => {
+                    const div = document.createElement('div');
+                    div.className = 'notification-item';
+                    div.innerHTML = `
+                        <i class="fa-solid ${item.icon} notification-icon" style="color: ${item.color};"></i>
+                        <div class="notification-content">
+                            <strong>[${item.dept}] ${item.alert}</strong>
+                            <span>${item.time} Today</span>
+                        </div>
+                    `;
+                    notificationList.appendChild(div);
+                });
+            }
+
+            // 2. Show Modal
+            notificationModal.style.display = 'block';
+            modalOverlay.style.display = 'block';
+        }
+        
+        function closeNotificationModal() {
+            notificationModal.style.display = 'none';
+            // Check if any other modal is open before hiding overlay
+            if (labListModal.style.display === 'none') {
+                 modalOverlay.style.display = 'none';
+            }
         }
 
         // --- Other Utility Functions (updated) ---
@@ -1330,7 +1445,7 @@
                     <div class="toolbar-item" title="View Patient's EMR">
                         <i class="fa-solid fa-file-medical toolbar-icon"></i>
                     </div>
-                    <div class="toolbar-item" title="Send to Lab/Radiology">
+                    <div class="toolbar-item" title="Lab list (Ctrl+L)">
                         <i class="fa-solid fa-vial-circle-check toolbar-icon"></i>
                     </div>
                     <div class="toolbar-item" title="Send to Doctor">
@@ -1402,8 +1517,8 @@
             const isCtrlOrCmd = event.ctrlKey || event.metaKey;
 
             // 1. **PRIORITY PREVENTION:** Prevent browser default actions immediately for high-conflict keys.
-            // ใช้ KeyE, KeyL, KeyS, KeyP, Escape (Code จะทำงานแม้เปลี่ยนเป็นภาษาไทย)
-            if ((isCtrlOrCmd && (code === 'KeyE' || code === 'KeyL' || code === 'KeyS')) || code === 'KeyP' || code === 'Escape') {
+            // เพิ่ม KeyN
+            if ((isCtrlOrCmd && (code === 'KeyE' || code === 'KeyL' || code === 'KeyS' || code === 'KeyN')) || code === 'KeyP' || code === 'Escape') {
                 event.preventDefault(); 
             }
 
@@ -1429,6 +1544,8 @@
                 } else if (code === 'KeyS') { // Ctrl + S: Toggle Table/Card View (Mockup)
                     alert('Hotkey Activated: Ctrl + S (Toggle View)');
                     // Future: Call function to switch view
+                } else if (code === 'KeyN') { // Ctrl + N: Show Notifications (NEW)
+                    showNotificationModal();
                 }
             } else if (code === 'KeyP') { // P: Toggle Detail Panel
                 panelVisibilityToggle.checked = !isPanelVisible;
@@ -1437,6 +1554,7 @@
             } else if (code === 'Escape') { // Escape: Close Panel, Clear Selection, and Close Modal
                 detailPanel.classList.remove('open');
                 closeLabListModal(); // Close Lab Modal
+                closeNotificationModal(); // Close Notification Modal (NEW)
                 // Ensure selection is cleared and timeline is hidden
                 toggleRowSelection(null); 
                 
@@ -1452,8 +1570,9 @@
                 // ***ยกเลิกการปรับสถานะของ Slider ตรงนี้***
             });
             
-            // NEW: Close Lab Modal button
+            // NEW: Close Modal buttons
             closeLabModalBtn.addEventListener('click', closeLabListModal);
+            closeNotificationModalBtn.addEventListener('click', closeNotificationModal);
             
             // Initial state: กำหนดค่าเริ่มต้นตาม checkbox
             togglePanelVisibility(); 
